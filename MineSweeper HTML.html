@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+	<title></title>
+	<meta name="generator" content="LibreOffice 7.4.4.2 (Linux)"/>
+	<meta name="created" content="00:00:00"/>
+	<meta name="changed" content="00:00:00"/>
+	<style type="text/css">
+		@page { size: 8.27in 11.69in; margin: 0.79in }
+		p { line-height: 115%; margin-bottom: 0.1in; background: transparent }
+		pre { font-family: "Liberation Mono", monospace; font-size: 10pt; background: transparent }
+	</style>
+</head>
+<body lang="en-US" link="#000080" vlink="#800000" dir="ltr"><pre>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;style&gt;
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: #eee;
+    }
+    #c {
+      border: 1px solid #000;
+    }
+    #stopwatch {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 20px;
+    }
+    #header {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translate(-50%, 0);
+      text-align: center;
+    }
+    #header h1 {
+      font-size: 30px;
+    }
+    #header p {
+      font-size: 20px;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;canvas id=&quot;c&quot;&gt;&lt;/canvas&gt;
+  &lt;div id=&quot;stopwatch&quot;&gt;
+    &lt;span id=&quot;minutes&quot;&gt;00&lt;/span&gt;:&lt;span id=&quot;seconds&quot;&gt;00&lt;/span&gt;
+  &lt;/div&gt;
+  &lt;div id=&quot;header&quot;&gt;
+    &lt;h1&gt;Minesweeper!&lt;/h1&gt;
+    &lt;p&gt;Coded and website made by Tyler S.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;script&gt;
+    var w = 18, h = 14, bombs = 40, cellSize = 50
+    var canvas = document.getElementById('c')
+    canvas.width = w*cellSize; canvas.height = h*cellSize
+    var ctx = canvas.getContext('2d')
+
+    function Cell(x, y) {
+      this.x = x; this.y = y; this.bomb = false; this.flagged = false; this.open = false;
+    }
+    Cell.prototype.draw = function(ctx, field) {
+      ctx.save()
+      ctx.translate(this.x*cellSize, this.y*cellSize)
+      ctx.fillStyle = this.open ? '#eee' : '#bbb'
+      ctx.fillRect(1, 1, cellSize-2, cellSize-2)
+      var s = ''
+      if (this.flagged) {
+        ctx.fillStyle = '#00f'
+        s = String.fromCharCode(9873)
+      } else if (this.open) {
+        var bombsAround = this.cellsAround(field).filter(c =&gt; c.bomb).length
+        if (this.bomb) {
+          ctx.fillStyle = '#f00'
+          s = '*'
+        } else if (bombsAround &gt; 0) {
+          ctx.fillStyle = '#000'
+          s = bombsAround
+        }
+      }
+      ctx.textAlign = 'center'
+      ctx.font = '20px Verdana'
+      ctx.fillText(s, cellSize/2, cellSize/2 + 10)
+      ctx.restore()
+    }
+    Cell.prototype.cellsAround = function(field) {
+      var c = []
+      for (var yy = -1; yy &lt;= 1; yy++) {
+        var cy = this.y+yy
+        if (cy &lt; 0 || cy &gt;= h) continue
+        for (var xx = -1; xx &lt;= 1; xx++) {
+          if (xx == 0 &amp;&amp; yy == 0) continue
+          var cx = this.x+xx
+          if (cx &lt; 0 || cx &gt;= w) continue
+          c.push(field[cy][cx])
+        }
+      }
+      return c
+    }
+    Cell.prototype.flag = function() {
+      if (!this.open) this.flagged = !this.flagged
+      return true
+    }
+    Cell.prototype.click = function(field) {
+      if (this.open) return true
+      if (this.bomb) return false
+      this.open = true
+      var cells = this.cellsAround(field)
+      if (cells.filter(c =&gt; c.bomb).length == 0) cells.forEach(c =&gt; c.click(field));
+      return true
+    }
+
+    var field = init()
+    function init() {
+      var f = []
+      for (var y = 0; y &lt; h; y++) {
+        var r = []
+        for (var x = 0; x &lt; w; x++) r.push(new Cell(x, y))
+        f.push(r)
+      }
+      for (var i = 0; i &lt;  bombs; i++) {
+        while (true) {
+          var x = Math.floor(w*Math.random()), y = Math.floor(h*Math.random())
+          if (!f[y][x].bomb) {
+            f[y][x].bomb = true
+            break
+          }
+        }
+      }
+      return f
+    }
+    function draw() {
+      eachCell(cell =&gt; cell.draw(ctx, field))
+    }
+    function openAll() {
+      eachCell(cell =&gt; cell.open = true)
+    }
+    function eachCell(fn) {
+      for (var y = 0; y &lt; h; y++) {
+        for (var x = 0; x &lt; w; x++) fn(field[y][x])
+      }
+    }
+    function gameWon() {
+      var found = 0
+      eachCell(cell =&gt; { if (cell.bomb &amp;&amp; cell.flagged) found++ })
+      return bombs == found
+    }
+    function finishGame(text) {
+      openAll()
+      draw()
+      stopTimer();
+      setTimeout(function() {
+        alert(text)
+        location.reload()
+      }, 50)
+    }
+    function processAction(x, y, fn) {
+      var cell = field[Math.floor(y/cellSize)][Math.floor(x/cellSize)] 
+      var ok = fn(cell)
+      draw()
+      if (!ok) finishGame('Game over, you lost!')
+      if (gameWon()) finishGame('You won!')
+    }
+    draw()
+    canvas.addEventListener('click', function(e) {
+      if (gameStarted === false) {
+        startTimer();
+        gameStarted = true;
+      }
+      processAction(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top, (cell) =&gt; cell.click(field))
+    })
+    canvas.addEventListener('contextmenu', function(e) {
+      e.preventDefault()
+      processAction(e.clientX - canvas.getBoundingClientRect().left, e.clientY - canvas.getBoundingClientRect().top, (cell) =&gt; cell.flag())
+    })
+
+    var gameStarted = false;
+    var timerInterval;
+    var seconds = 0;
+    var minutes = 0;
+
+    function startTimer() {
+      timerInterval = setInterval(function () {
+        seconds++;
+        if (seconds &gt;= 60) {
+          minutes++;
+          seconds = 0;
+        }
+        document.getElementById('seconds').textContent = ('0' + seconds).slice(-2);
+        document.getElementById('minutes').textContent = ('0' + minutes).slice(-2);
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+</body>
+</html>
